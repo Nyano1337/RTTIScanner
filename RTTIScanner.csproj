@@ -65,6 +65,7 @@
     <Compile Include="ClassExtensions\IntPtrExtension.cs" />
     <Compile Include="ClassExtensions\StringReaderExtension.cs" />
     <Compile Include="Ifaces\Debugger.cs" />
+    <Compile Include="Ifaces\LinuxAPI.cs" />
     <Compile Include="Memory\BytePattern.cs" />
     <Compile Include="Memory\DebugProcess.cs" />
     <Compile Include="Memory\LinuxProcess.cs" />

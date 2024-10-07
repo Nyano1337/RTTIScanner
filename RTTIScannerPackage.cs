@@ -26,8 +26,8 @@ namespace RTTIScanner
 			await this.RegisterCommandsAsync();
 
 			IVsDebugger debugger = (IVsDebugger)await GetServiceAsync(typeof(SVsShellDebugger));
-			int hr = debugger?.AdviseDebugEventCallback(new DebugEventCallback()) ?? -1;
-			ErrorHandler.ThrowOnFailure(hr);
+			ErrorHandler.ThrowOnFailure(debugger?.AdviseDebugEventCallback(new DebugEventCallback()) ?? -1);
+			ErrorHandler.ThrowOnFailure(debugger?.AdviseDebuggerEvents(new DebugEventCallback(), out uint pdwCookie) ?? -1);
 		}
 
 		public class DebugEventCallback : IDebugEventCallback2, IVsDebuggerEvents

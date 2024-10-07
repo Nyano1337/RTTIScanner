@@ -53,24 +53,30 @@ namespace RTTIScanner.Memory
 			throw new Exception("ReadMemory pure call");
 		}
 
-		public async Task<Process> Init()
+		public async Task Init()
 		{
 			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
 			OSPlatform platform = await GetPlatform();
-			if (platform == OSPlatform.Windows)
+			try
 			{
-				Instance = (WinProcess)Instance;
+				if (platform == OSPlatform.Windows)
+				{
+					Instance = new WinProcess(DTE);
+				}
+				else
+				{
+					Instance = new LinuxProcess(DTE);
+				}
 			}
-			else
+			catch (Exception e)
 			{
-				Instance = (LinuxProcess)Instance;
+				throw new Exception(e.Message);
 			}
 
 			if (IsMinidump)
 			{
-				CurrentProcess = Process.GetCurrentProcess();
-				return CurrentProcess;
+				Instance.CurrentProcess = Process.GetCurrentProcess();
 			}
 
 			// A weird way to get current process but i dont have no idea.
@@ -84,8 +90,8 @@ namespace RTTIScanner.Memory
 
 				try
 				{
-					CurrentProcess = Process.GetProcessById(process.ProcessID);
-					return CurrentProcess;
+					Instance.CurrentProcess = Process.GetProcessById(process.ProcessID);
+					return;
 				}
 				catch (Exception ex)
 				{
@@ -93,8 +99,7 @@ namespace RTTIScanner.Memory
 				}
 			}
 
-			CurrentProcess = null;
-			return CurrentProcess;
+			Instance.CurrentProcess = null;
 		}
 
 		protected virtual void Dispose(bool disposing)

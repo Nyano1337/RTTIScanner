@@ -6,116 +6,116 @@ using System.Threading.Tasks;
 
 namespace RTTIScanner.Memory
 {
-    public class Reader
-    {
-        private static Reader Instance;
-        public bool IsMinidump { get; set; }
+	public class Reader
+	{
+		private static Reader Instance;
+		public bool IsMinidump { get; set; }
 
-        private Reader() { }
+		private Reader() { }
 
-        public static Reader GetInstance()
-        {
-            return Instance ??= new Reader();
-        }
+		public static Reader GetInstance()
+		{
+			return Instance ??= new Reader();
+		}
 
-        // 64bit
-        public static IntPtr ParseAddress(string addressString)
-        {
-            if (addressString.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            {
-                addressString = addressString.Substring(2);
-            }
+		// 64bit
+		public static IntPtr ParseAddress(string addressString)
+		{
+			if (addressString.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+			{
+				addressString = addressString.Substring(2);
+			}
 
-            try
-            {
-                return new IntPtr(long.Parse(addressString, System.Globalization.NumberStyles.HexNumber));
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error parsing address: {ex.Message}");
-            }
-        }
+			try
+			{
+				return new IntPtr(long.Parse(addressString, System.Globalization.NumberStyles.HexNumber));
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Error parsing address: {ex.Message}");
+			}
+		}
 
-        public async Task<IntPtr> GetPtr(IntPtr pointer, int size)
-        {
-            byte[] data = await GetBytes(pointer, size);
-            if (data == null)
-            {
-                return IntPtr.Zero;
-            }
+		public async Task<IntPtr> GetPtr(IntPtr pointer, int size)
+		{
+			byte[] data = await GetBytes(pointer, size);
+			if (data == null)
+			{
+				return IntPtr.Zero;
+			}
 
-            return size == 8 ? (IntPtr)BitConverter.ToInt64(data, 0) : (IntPtr)BitConverter.ToInt32(data, 0);
-        }
+			return size == 8 ? (IntPtr)BitConverter.ToInt64(data, 0) : (IntPtr)BitConverter.ToInt32(data, 0);
+		}
 
-        public async Task<byte[]> GetBytes(IntPtr pointer, int size)
-        {
-            return IsMinidump ? await GetBytesFromVSAsync(pointer, size) : await DebugProcess.GetInstance().ReadMemory(pointer, size);
-        }
+		public async Task<byte[]> GetBytes(IntPtr pointer, int size)
+		{
+			return IsMinidump ? await GetBytesFromVSAsync(pointer, size) : await DebugProcess.GetInstance().ReadMemory(pointer, size);
+		}
 
-        public async Task<byte[]> GetBytesFromVSAsync(IntPtr pointer, int size)
-        {
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+		public async Task<byte[]> GetBytesFromVSAsync(IntPtr pointer, int size)
+		{
+			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            string expression = "0x" + pointer.ToString("X");
-            Debugger debugger = Debugger.GetInstance();
-            if (debugger.MainThread == null)
-            {
-                throw new Exception("获取主线程失败!\n(这通常发生在扩展初始化晚于调试器启动, 请重启VS!)");
-            }
+			string expression = "0x" + pointer.ToString("X");
+			Debugger debugger = Debugger.GetInstance();
+			if (debugger.MainThread == null)
+			{
+				throw new Exception("获取主线程失败!\n(这通常发生在扩展初始化晚于调试器启动, 请重启VS!)");
+			}
 
-            IDebugStackFrame2 debugStackFrame = GetTopStackFrame(debugger.MainThread);
-            if (debugStackFrame == null)
-            {
-                throw new Exception("获取栈帧失败!");
-            }
+			IDebugStackFrame2 debugStackFrame = GetTopStackFrame(debugger.MainThread);
+			if (debugStackFrame == null)
+			{
+				throw new Exception("获取栈帧失败!");
+			}
 
-            if (debugStackFrame.GetExpressionContext(out IDebugExpressionContext2 expressionContext) != VSConstants.S_OK)
-            {
-                throw new Exception("获取IDebugExpressionContext2失败!");
-            }
+			if (debugStackFrame.GetExpressionContext(out IDebugExpressionContext2 expressionContext) != VSConstants.S_OK)
+			{
+				throw new Exception("获取IDebugExpressionContext2失败!");
+			}
 
-            if (expressionContext.ParseText(expression, enum_PARSEFLAGS.PARSE_EXPRESSION, 16, out IDebugExpression2 debugExpression, out _, out _) != VSConstants.S_OK)
-            {
-                throw new Exception("获取IDebugExpression2失败!");
-            }
+			if (expressionContext.ParseText(expression, enum_PARSEFLAGS.PARSE_EXPRESSION, 16, out IDebugExpression2 debugExpression, out _, out _) != VSConstants.S_OK)
+			{
+				throw new Exception("获取IDebugExpression2失败!");
+			}
 
-            if (debugExpression.EvaluateSync(enum_EVALFLAGS.EVAL_NOSIDEEFFECTS, uint.MaxValue, null, out IDebugProperty2 debugProperty) != VSConstants.S_OK)
-            {
-                throw new Exception("获取IDebugProperty2失败!");
-            }
+			if (debugExpression.EvaluateSync(enum_EVALFLAGS.EVAL_NOSIDEEFFECTS, uint.MaxValue, null, out IDebugProperty2 debugProperty) != VSConstants.S_OK)
+			{
+				throw new Exception("获取IDebugProperty2失败!");
+			}
 
-            if (debugProperty.GetMemoryContext(out IDebugMemoryContext2 memoryContext) != VSConstants.S_OK)
-            {
-                throw new Exception("获取IDebugMemoryContext2失败!");
-            }
+			if (debugProperty.GetMemoryContext(out IDebugMemoryContext2 memoryContext) != VSConstants.S_OK)
+			{
+				throw new Exception("获取IDebugMemoryContext2失败!");
+			}
 
-            if (debugger.Program == null)
-            {
-                throw new Exception("获取Program失败!");
-            }
+			if (debugger.Program == null)
+			{
+				throw new Exception("获取Program失败!");
+			}
 
-            if (debugger.Program.GetMemoryBytes(out IDebugMemoryBytes2 debugMemoryBytes2) != VSConstants.S_OK)
-            {
-                throw new Exception("获取IDebugMemoryBytes2失败!");
-            }
+			if (debugger.Program.GetMemoryBytes(out IDebugMemoryBytes2 debugMemoryBytes2) != VSConstants.S_OK)
+			{
+				throw new Exception("获取IDebugMemoryBytes2失败!");
+			}
 
-            byte[] data = new byte[size];
-            uint unreadableBytes = 0;
-            if (debugMemoryBytes2.ReadAt(memoryContext, (uint)size, data, out _, ref unreadableBytes) != VSConstants.S_OK)
-            {
-                throw new Exception("从VS读取内存失败!");
-            }
+			byte[] data = new byte[size];
+			uint unreadableBytes = 0;
+			if (debugMemoryBytes2.ReadAt(memoryContext, (uint)size, data, out _, ref unreadableBytes) != VSConstants.S_OK)
+			{
+				throw new Exception("从VS读取内存失败!");
+			}
 
-            return data;
-        }
+			return data;
+		}
 
-        private IDebugStackFrame2 GetTopStackFrame(IDebugThread2 thread)
-        {
-            thread.EnumFrameInfo(enum_FRAMEINFO_FLAGS.FIF_FRAME, 0, out IEnumDebugFrameInfo2 enumFrameInfo);
-            FRAMEINFO[] frameInfo = new FRAMEINFO[1];
-            uint fetched = 0;
-            enumFrameInfo.Next(1, frameInfo, ref fetched);
-            return fetched > 0 ? frameInfo[0].m_pFrame : null;
-        }
-    }
+		private IDebugStackFrame2 GetTopStackFrame(IDebugThread2 thread)
+		{
+			thread.EnumFrameInfo(enum_FRAMEINFO_FLAGS.FIF_FRAME, 0, out IEnumDebugFrameInfo2 enumFrameInfo);
+			FRAMEINFO[] frameInfo = new FRAMEINFO[1];
+			uint fetched = 0;
+			enumFrameInfo.Next(1, frameInfo, ref fetched);
+			return fetched > 0 ? frameInfo[0].m_pFrame : null;
+		}
+	}
 }

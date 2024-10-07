@@ -34,6 +34,50 @@ namespace RTTIScanner.RTTI
 			throw new Exception("ReadRuntimeTypeInformation pure call");
 		}
 
+		public async Task<IntPtr> ReadRemoteIntPtr(IntPtr address)
+		{
+			try
+			{
+#if RTTISCANNER64
+				return (IntPtr)await ReadRemoteInt64(address);
+#else
+				return (IntPtr)await ReadRemoteInt32(address);
+#endif
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
+
+		public async Task<long> ReadRemoteInt64(IntPtr address)
+		{
+			try
+			{
+				var data = await Memory.Reader.GetInstance().GetBytes(address, sizeof(long));
+
+				return BitConverter.ToInt64(data, 0);
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
+
+		public async Task<int> ReadRemoteInt32(IntPtr address)
+		{
+			try
+			{
+				var data = await Memory.Reader.GetInstance().GetBytes(address, sizeof(int));
+
+				return BitConverter.ToInt32(data, 0);
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
+
 		protected virtual void Dispose(bool disposing)
 		{
 			if (!disposedValue)
