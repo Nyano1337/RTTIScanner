@@ -44,17 +44,19 @@ namespace RTTIScanner.Memory
             // The debugger.CurrentProcess is always null.
             foreach (EnvDTE.Process process in DTE.Debugger.DebuggedProcesses)
             {
-                if (process != null)
+                if (process == null)
                 {
-                    try
-                    {
-                        CurrentProcess = Process.GetProcessById(process.ProcessID);
-                        return CurrentProcess;
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new Exception($"Catched error getting process by id: {ex.Message}");
-                    }
+                    continue;
+                }
+
+                try
+                {
+                    CurrentProcess = Process.GetProcessById(process.ProcessID);
+                    return CurrentProcess;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Catched error getting process by id: {ex.Message}");
                 }
             }
 

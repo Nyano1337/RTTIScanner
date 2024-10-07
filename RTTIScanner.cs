@@ -122,7 +122,7 @@ namespace RTTIScanner.Implement
 
                 IntPtr remotePtr = await memReader.GetPtr(pointer, 8);
                 string[] rtti = await RTTI.Parser.GetInstace().ReadRuntimeTypeInformation(remotePtr);
-                if (rtti.Length == 0)
+                if (rtti == null || rtti.Length == 0)
                 {
                     ErrorResult($"Unknown Structure");
                     return;
