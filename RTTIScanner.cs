@@ -106,13 +106,10 @@ namespace RTTIScanner.Implement
 
                 Memory.Reader memReader = Memory.Reader.GetInstance();
 
-                if (debugProcess.DTE.Debugger.CurrentProcess != null)
+                if (debugProcess.DTE.Debugger.CurrentProcess?.Name.EndsWith(".mdmp") ?? false)
                 {
-                    if (debugProcess.DTE.Debugger.CurrentProcess.Name.EndsWith(".mdmp"))
-                    {
-                        debugProcess.IsMinidump = true;
-                        memReader.IsMinidump = true;
-                    }
+                    debugProcess.IsMinidump = true;
+                    memReader.IsMinidump = true;
                 }
 
                 IntPtr pointer = Memory.Reader.ParseAddress(context);
@@ -139,7 +136,7 @@ namespace RTTIScanner.Implement
             }
             catch (Exception ex)
             {
-                ErrorResult($"Error reading process memory: \n{ex.Message}");
+                ErrorResult(ex.Message);
                 return;
             }
         }
