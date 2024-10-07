@@ -102,8 +102,6 @@ namespace RTTIScanner.Implement
                     return;
                 }
 
-                await debugProcess.InitCurrentDebugProcess();
-
                 Memory.Reader memReader = Memory.Reader.GetInstance();
 
                 if (debugProcess.DTE.Debugger.CurrentProcess?.Name.EndsWith(".mdmp") ?? false)
@@ -111,6 +109,8 @@ namespace RTTIScanner.Implement
                     debugProcess.IsMinidump = true;
                     memReader.IsMinidump = true;
                 }
+
+                await debugProcess.InitCurrentDebugProcess();
 
                 IntPtr pointer = Memory.Reader.ParseAddress(context);
                 if (!pointer.IsValid())
