@@ -30,7 +30,7 @@ namespace RTTIScanner.Memory
             return null;
         }
 
-        public async Task<Process> InitCurrentDebugProcess()
+        public async Task<Process> Init()
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 

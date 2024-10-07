@@ -110,7 +110,7 @@ namespace RTTIScanner.Implement
                     memReader.IsMinidump = true;
                 }
 
-                await debugProcess.InitCurrentDebugProcess();
+                await debugProcess.Init();
 
                 IntPtr pointer = Memory.Reader.ParseAddress(context);
                 if (!pointer.IsValid())
