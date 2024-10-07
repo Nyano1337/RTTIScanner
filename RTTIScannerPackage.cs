@@ -52,10 +52,7 @@ namespace RTTIScanner
 					}
 					case DBGMODE.DBGMODE_Design:
 					{
-						ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-						{
-							await Ifaces.Debugger.GetInstance().OnEnterBreakMode();
-						}).FileAndForget("RTTIScanner/OnEnterBreakMode");
+						Ifaces.Debugger.GetInstance().OnEnterDesignMode();
 						break;
 					}
 				}

@@ -41,5 +41,11 @@ namespace RTTIScanner.Ifaces
 			await debugProcess.Init();
 			RTTI.Parser.Init(await debugProcess.GetPlatform());
 		}
+
+		public void OnEnterDesignMode()
+		{
+			Memory.DebugProcess.GetInstance()?.Dispose();
+			RTTI.Parser.GetInstace()?.Dispose();
+		}
 	}
 }
