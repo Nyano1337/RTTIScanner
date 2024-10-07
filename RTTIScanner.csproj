@@ -64,18 +64,21 @@
     <Compile Include="ClassExtensions\EnumerableExtension.cs" />
     <Compile Include="ClassExtensions\IntPtrExtension.cs" />
     <Compile Include="ClassExtensions\StringReaderExtension.cs" />
-    <Compile Include="Implement\DebuggerIfaces.cs" />
-    <Compile Include="Implement\MinidumpParser.cs" />
+    <Compile Include="Ifaces\Debugger.cs" />
     <Compile Include="Memory\BytePattern.cs" />
-    <Compile Include="Memory\PatternScanner.cs" />
-    <Compile Include="Implement\RemoteProcess.cs" />
-    <Compile Include="Implement\RTTIParser.cs" />
-    <Compile Include="Implement\NativeAPI.cs" />
+    <Compile Include="Memory\DebugProcess.cs" />
     <Compile Include="Memory\Module.cs" />
+    <Compile Include="Memory\PatternScanner.cs" />
+    <Compile Include="Memory\Reader.cs" />
     <Compile Include="Memory\Section.cs" />
+    <Compile Include="Memory\WinProcess.cs" />
+    <Compile Include="RTTI\GCC.cs" />
+    <Compile Include="RTTI\MSVC.cs" />
+    <Compile Include="Ifaces\WinAPI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Implement\RTTIScannerImpl.cs" />
+    <Compile Include="RTTIScanner.cs" />
     <Compile Include="RTTIScannerPackage.cs" />
+    <Compile Include="RTTI\Parser.cs" />
     <Compile Include="vsix\source.extension.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -88,6 +91,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <None Include=".editorconfig" />
     <None Include="vsix\source.extension.vsixmanifest">
       <SubType>Designer</SubType>
       <Generator>VsixManifestGenerator</Generator>

@@ -26,9 +26,8 @@ namespace RTTIScanner
             await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             await this.RegisterCommandsAsync();
 
-            DebuggerIfaces.Instance ??= new DebuggerIfaces();
             IVsDebugger debugger = (IVsDebugger)await GetServiceAsync(typeof(SVsShellDebugger));
-            int hr = debugger.AdviseDebugEventCallback(new DebugEventCallback());
+            int hr = debugger?.AdviseDebugEventCallback(new DebugEventCallback()) ?? -1;
             ErrorHandler.ThrowOnFailure(hr);
         }
 
@@ -36,7 +35,7 @@ namespace RTTIScanner
         {
             public int Event(IDebugEngine2 engine, IDebugProcess2 process, IDebugProgram2 program, IDebugThread2 thread, IDebugEvent2 debugEvent, ref Guid riidEvent, uint attributes)
             {
-                DebuggerIfaces.Instance.Update(engine, process, program, thread, debugEvent);
+                Ifaces.Debugger.GetInstance().Update(engine, process, program, thread, debugEvent);
                 return VSConstants.S_OK;
             }
         }

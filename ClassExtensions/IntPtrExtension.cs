@@ -11,7 +11,7 @@ namespace RTTIScanner.ClassExtensions
         }
 
         [Pure]
-        public static bool MayBeValid(this IntPtr ptr)
+        public static bool IsValid(this IntPtr ptr)
         {
 #if RTTISCANNER64
             return ptr.IsInRange((IntPtr)0x10000, (IntPtr)long.MaxValue);

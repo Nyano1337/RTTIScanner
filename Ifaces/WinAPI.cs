@@ -1,9 +1,10 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
+using RTTIScanner.Memory;
 
-namespace RTTIScanner.Implement
+namespace RTTIScanner.Ifaces
 {
-    public static class NativeAPI
+    public static class WinAPI
     {
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr VirtualAlloc(IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);

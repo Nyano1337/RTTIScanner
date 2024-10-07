@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace RTTIScanner.Implement
+namespace RTTIScanner.Memory
 {
     public enum PatternMaskFormat
     {
