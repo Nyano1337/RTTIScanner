@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace RTTIScanner.RTTI
 {
-    public class GCC
-    {
-    }
+	public class GCC : Parser
+	{
+
+	}
 }

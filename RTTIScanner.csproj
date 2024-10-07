@@ -67,6 +67,7 @@
     <Compile Include="Ifaces\Debugger.cs" />
     <Compile Include="Memory\BytePattern.cs" />
     <Compile Include="Memory\DebugProcess.cs" />
+    <Compile Include="Memory\LinuxProcess.cs" />
     <Compile Include="Memory\Module.cs" />
     <Compile Include="Memory\PatternScanner.cs" />
     <Compile Include="Memory\Reader.cs" />

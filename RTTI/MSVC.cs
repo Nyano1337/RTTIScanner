@@ -7,193 +7,196 @@ using System.Threading.Tasks;
 
 namespace RTTIScanner.RTTI
 {
-    public class MSVC : Parser
-    {
-        // Reference: https://github.com/ReClassNET/ReClass.NET/blob/a02fcb9bd669c8f81facd3ee9ad57cdcbf2cc0e1/ReClass.NET/Memory/RemoteProcess.cs#L190
-        public override async Task<string[]> ReadRuntimeTypeInformation(IntPtr address)
-        {
-            if (address.IsValid())
-            {
-                try
-                {
-                    string[] rtti = null;
-                    var objectLocatorPtr = await ReadRemoteIntPtr(address - IntPtr.Size);
-                    if (objectLocatorPtr.IsValid())
-                    {
+	public class MSVC : Parser
+	{
+		// Reference: https://github.com/ReClassNET/ReClass.NET/blob/a02fcb9bd669c8f81facd3ee9ad57cdcbf2cc0e1/ReClass.NET/Memory/RemoteProcess.cs#L190
+		public override async Task<string[]> ReadRuntimeTypeInformation(IntPtr address)
+		{
+			if (!address.IsValid())
+			{
+				return null;
+			}
+
+			try
+			{
+				string[] rtti = null;
+				var objectLocatorPtr = await ReadRemoteIntPtr(address - IntPtr.Size);
+				if (objectLocatorPtr.IsValid())
+				{
 #if RTTISCANNER64
-                        rtti = await ReadRemoteRuntimeTypeInformation64(objectLocatorPtr);
+					rtti = await ReadRemoteRuntimeTypeInformation64(objectLocatorPtr);
 #else
-                        //rtti = ReadRemoteRuntimeTypeInformation32(objectLocatorPtr);
+						//rtti = ReadRemoteRuntimeTypeInformation32(objectLocatorPtr);
 #endif
 
-                    }
+				}
 
-                    return rtti;
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception($"Catched error reading process memory: {ex.Message}");
-                }
-            }
+				return rtti;
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
 
-            return null;
-        }
+		public async Task<string[]> ReadRemoteRuntimeTypeInformation64(IntPtr address)
+		{
+			if (!address.IsValid())
+			{
+				return null;
+			}
 
-        public async Task<string[]> ReadRemoteRuntimeTypeInformation64(IntPtr address)
-        {
-            try
-            {
-                if (address.IsValid())
-                {
-                    int baseOffset = await ReadRemoteInt32(address + 0x14);
-                    if (baseOffset != 0)
-                    {
-                        var baseAddress = address - baseOffset;
+			try
+			{
 
-                        var classHierarchyDescriptorOffset = await ReadRemoteInt32(address + 0x10);
-                        if (classHierarchyDescriptorOffset != 0)
-                        {
-                            var classHierarchyDescriptorPtr = baseAddress + classHierarchyDescriptorOffset;
+				int baseOffset = await ReadRemoteInt32(address + 0x14);
+				if (baseOffset != 0)
+				{
+					var baseAddress = address - baseOffset;
 
-                            var baseClassCount = await ReadRemoteInt32(classHierarchyDescriptorPtr + 0x08);
-                            if (baseClassCount > 0 && baseClassCount < 25)
-                            {
-                                var baseClassArrayOffset = await ReadRemoteInt32(classHierarchyDescriptorPtr + 0x0C);
-                                if (baseClassArrayOffset != 0)
-                                {
-                                    var baseClassArrayPtr = baseAddress + baseClassArrayOffset;
+					var classHierarchyDescriptorOffset = await ReadRemoteInt32(address + 0x10);
+					if (classHierarchyDescriptorOffset != 0)
+					{
+						var classHierarchyDescriptorPtr = baseAddress + classHierarchyDescriptorOffset;
 
-                                    var sb = new StringBuilder();
-                                    for (var i = 0; i < baseClassCount; ++i)
-                                    {
-                                        var baseClassDescriptorOffset = await ReadRemoteInt32(baseClassArrayPtr + (4 * i));
-                                        if (baseClassDescriptorOffset != 0)
-                                        {
-                                            var baseClassDescriptorPtr = baseAddress + baseClassDescriptorOffset;
+						var baseClassCount = await ReadRemoteInt32(classHierarchyDescriptorPtr + 0x08);
+						if (baseClassCount > 0 && baseClassCount < 25)
+						{
+							var baseClassArrayOffset = await ReadRemoteInt32(classHierarchyDescriptorPtr + 0x0C);
+							if (baseClassArrayOffset != 0)
+							{
+								var baseClassArrayPtr = baseAddress + baseClassArrayOffset;
 
-                                            var typeDescriptorOffset = await ReadRemoteInt32(baseClassDescriptorPtr);
-                                            if (typeDescriptorOffset != 0)
-                                            {
-                                                var typeDescriptorPtr = baseAddress + typeDescriptorOffset;
+								var sb = new StringBuilder();
+								for (var i = 0; i < baseClassCount; ++i)
+								{
+									var baseClassDescriptorOffset = await ReadRemoteInt32(baseClassArrayPtr + (4 * i));
+									if (baseClassDescriptorOffset != 0)
+									{
+										var baseClassDescriptorPtr = baseAddress + baseClassDescriptorOffset;
 
-                                                var name = await ReadRemoteStringUntilFirstNullCharacter(typeDescriptorPtr + 0x14, Encoding.UTF8, 60);
-                                                if (string.IsNullOrEmpty(name))
-                                                {
-                                                    break;
-                                                }
+										var typeDescriptorOffset = await ReadRemoteInt32(baseClassDescriptorPtr);
+										if (typeDescriptorOffset != 0)
+										{
+											var typeDescriptorPtr = baseAddress + typeDescriptorOffset;
 
-                                                if (name.EndsWith("@@"))
-                                                {
-                                                    name = UndecorateSymbolName("?" + name);
-                                                }
+											var name = await ReadRemoteStringUntilFirstNullCharacter(typeDescriptorPtr + 0x14, Encoding.UTF8, 60);
+											if (string.IsNullOrEmpty(name))
+											{
+												break;
+											}
 
-                                                sb.Append(name);
-                                                sb.Append(" - ");
+											if (name.EndsWith("@@"))
+											{
+												name = UndecorateSymbolName("?" + name);
+											}
 
-                                                continue;
-                                            }
-                                        }
+											sb.Append(name);
+											sb.Append(" - ");
 
-                                        break;
-                                    }
+											continue;
+										}
+									}
 
-                                    if (sb.Length != 0)
-                                    {
-                                        sb.Length -= 3;
+									break;
+								}
 
-                                        return sb.ToString().Split(separator: new string[] { " - " }, StringSplitOptions.RemoveEmptyEntries);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Catched error reading process memory: {ex.Message}");
-            }
+								if (sb.Length != 0)
+								{
+									sb.Length -= 3;
 
-            return null;
-        }
+									return sb.ToString().Split(separator: new string[] { " - " }, StringSplitOptions.RemoveEmptyEntries);
+								}
+							}
+						}
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
 
-        public async Task<IntPtr> ReadRemoteIntPtr(IntPtr address)
-        {
-            try
-            {
+			return null;
+		}
+
+		public async Task<IntPtr> ReadRemoteIntPtr(IntPtr address)
+		{
+			try
+			{
 #if RTTISCANNER64
-                return (IntPtr) await ReadRemoteInt64(address);
+				return (IntPtr)await ReadRemoteInt64(address);
 #else
-                return (IntPtr) await ReadRemoteInt32(address);
+				return (IntPtr) await ReadRemoteInt32(address);
 #endif
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Catched error reading process memory: {ex.Message}");
-            }
-        }
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
 
-        public async Task<long> ReadRemoteInt64(IntPtr address)
-        {
-            try
-            {
-                var data = await Memory.Reader.GetInstance().GetBytes(address, sizeof(long));
+		public async Task<long> ReadRemoteInt64(IntPtr address)
+		{
+			try
+			{
+				var data = await Memory.Reader.GetInstance().GetBytes(address, sizeof(long));
 
-                return BitConverter.ToInt64(data, 0);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Catched error reading process memory: {ex.Message}");
-            }
-        }
+				return BitConverter.ToInt64(data, 0);
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
 
-        public async Task<int> ReadRemoteInt32(IntPtr address)
-        {
-            try
-            {
-                var data = await Memory.Reader.GetInstance().GetBytes(address, sizeof(int));
+		public async Task<int> ReadRemoteInt32(IntPtr address)
+		{
+			try
+			{
+				var data = await Memory.Reader.GetInstance().GetBytes(address, sizeof(int));
 
-                return BitConverter.ToInt32(data, 0);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Catched error reading process memory: {ex.Message}");
-            }
-        }
+				return BitConverter.ToInt32(data, 0);
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
 
-        public async Task<string> ReadRemoteStringUntilFirstNullCharacter(IntPtr address, Encoding encoding, int length)
-        {
-            Contract.Requires(encoding != null);
-            Contract.Requires(length >= 0);
-            Contract.Ensures(Contract.Result<string>() != null);
+		public async Task<string> ReadRemoteStringUntilFirstNullCharacter(IntPtr address, Encoding encoding, int length)
+		{
+			Contract.Requires(encoding != null);
+			Contract.Requires(length >= 0);
+			Contract.Ensures(Contract.Result<string>() != null);
 
-            var data = await Memory.Reader.GetInstance().GetBytes(address, length * encoding.GuessByteCountPerChar());
+			var data = await Memory.Reader.GetInstance().GetBytes(address, length * encoding.GuessByteCountPerChar());
 
-            // TODO We should cache the pattern per encoding.
-            var index = PatternScanner.FindPattern(BytePattern.From(new byte[encoding.GuessByteCountPerChar()]), data);
-            if (index == -1)
-            {
-                index = data.Length;
-            }
+			// TODO We should cache the pattern per encoding.
+			var index = PatternScanner.FindPattern(BytePattern.From(new byte[encoding.GuessByteCountPerChar()]), data);
+			if (index == -1)
+			{
+				index = data.Length;
+			}
 
-            try
-            {
-                return encoding.GetString(data, 0, Math.Min(index, data.Length));
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
+			try
+			{
+				return encoding.GetString(data, 0, Math.Min(index, data.Length));
+			}
+			catch
+			{
+				return string.Empty;
+			}
+		}
 
-        public string UndecorateSymbolName(string name)
-        {
-            var sb = new StringBuilder(255);
-            if (WinAPI.UnDecorateSymbolName(name, sb, sb.Capacity, /*UNDNAME_NAME_ONLY*/0x1000) != 0)
-            {
-                return sb.ToString();
-            }
-            return name;
-        }
-    }
+		public string UndecorateSymbolName(string name)
+		{
+			var sb = new StringBuilder(255);
+			if (WinAPI.UnDecorateSymbolName(name, sb, sb.Capacity, /*UNDNAME_NAME_ONLY*/0x1000) != 0)
+			{
+				return sb.ToString();
+			}
+			return name;
+		}
+	}
 }
