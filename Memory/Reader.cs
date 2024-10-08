@@ -3,6 +3,9 @@ using Microsoft.VisualStudio;
 using RTTIScanner.Implement;
 using Debugger = RTTIScanner.Ifaces.Debugger;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Collections;
 
 namespace RTTIScanner.Memory
 {
@@ -36,15 +39,52 @@ namespace RTTIScanner.Memory
 			}
 		}
 
-		public async Task<IntPtr> GetPtr(IntPtr pointer, int size)
+		public async Task<T> GetValue<T>(IntPtr pointer, int offset = 0)
 		{
-			byte[] data = await GetBytes(pointer, size);
-			if (data == null)
+			if (typeof(T) == typeof(string))
 			{
-				return IntPtr.Zero;
+				byte[] buffer = await GetBytes(pointer + offset, 60);
+				if (buffer == null)
+				{
+					return default;
+				}
+
+				int length = Array.IndexOf(buffer, (byte)0);
+				if (length == -1)
+				{
+					length = buffer.Length;
+				}
+
+				return (T)(object)Encoding.UTF8.GetString(buffer, 0, length);
 			}
 
-			return size == 8 ? (IntPtr)BitConverter.ToInt64(data, 0) : (IntPtr)BitConverter.ToInt32(data, 0);
+			int size = Marshal.SizeOf<T>();
+			byte[] data = await GetBytes(pointer + offset, size);
+			if (data == null)
+			{
+				return default;
+			}
+
+			if (size == sizeof(long))
+			{
+				return typeof(T) == typeof(IntPtr) ? (T)(object)(IntPtr)BitConverter.ToInt64(data, 0) : (T)(object)BitConverter.ToInt64(data, 0);
+			}
+			else if (size == sizeof(int))
+			{
+				return typeof(T) == typeof(IntPtr) ? (T)(object)(IntPtr)BitConverter.ToInt32(data, 0) : (T)(object)BitConverter.ToInt32(data, 0);
+			}
+			else if (size == sizeof(short))
+			{
+				return (T)(object)BitConverter.ToInt16(data, 0);
+			}
+			else if (size == sizeof(byte))
+			{
+				return (T)(object)data[0];
+			}
+			else
+			{
+				throw new NotSupportedException($"Type size {size} is not supported.");
+			}
 		}
 
 		public async Task<byte[]> GetBytes(IntPtr pointer, int size)

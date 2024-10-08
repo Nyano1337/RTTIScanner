@@ -1,5 +1,6 @@
 ﻿using EnvDTE;
 using EnvDTE80;
+using RTTIScanner.ClassExtensions;
 using RTTIScanner.Memory;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -28,10 +29,38 @@ namespace RTTIScanner.RTTI
 			}
 		}
 
-		public virtual async Task<string[]> ReadRuntimeTypeInformation(IntPtr address)
+		public async Task<string[]> ReadRuntimeTypeInformation(IntPtr vtableAddress)
+		{
+			if (!vtableAddress.IsValid())
+			{
+				return null;
+			}
+
+			try
+			{
+				string[] rtti = null;
+				var typeInfoPtr = await ReadRemoteIntPtr(vtableAddress - IntPtr.Size);
+				if (typeInfoPtr.IsValid())
+				{
+#if RTTISCANNER64
+					rtti = await ReadRemoteRuntimeTypeInformation64(typeInfoPtr);
+#else
+					rtti = await ReadRemoteRuntimeTypeInformation32(typeInfoPtr);
+#endif
+				}
+
+				return rtti;
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
+
+		public virtual async Task<string[]> ReadRemoteRuntimeTypeInformation64(IntPtr address)
 		{
 			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-			throw new Exception("ReadRuntimeTypeInformation pure call");
+			throw new NotImplementedException("ReadRemoteRuntimeTypeInformation64 pure call");
 		}
 
 		public async Task<IntPtr> ReadRemoteIntPtr(IntPtr address)
@@ -71,6 +100,18 @@ namespace RTTIScanner.RTTI
 				var data = await Memory.Reader.GetInstance().GetBytes(address, sizeof(int));
 
 				return BitConverter.ToInt32(data, 0);
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
+
+		public async Task<string> ReadRemoteString(IntPtr address)
+		{
+			try
+			{
+				return await Memory.Reader.GetInstance().GetValue<string>(address);
 			}
 			catch (Exception ex)
 			{

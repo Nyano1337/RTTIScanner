@@ -10,36 +10,7 @@ namespace RTTIScanner.RTTI
 	public class MSVC : Parser
 	{
 		// Reference: https://github.com/ReClassNET/ReClass.NET/blob/a02fcb9bd669c8f81facd3ee9ad57cdcbf2cc0e1/ReClass.NET/Memory/RemoteProcess.cs#L190
-		public override async Task<string[]> ReadRuntimeTypeInformation(IntPtr address)
-		{
-			if (!address.IsValid())
-			{
-				return null;
-			}
-
-			try
-			{
-				string[] rtti = null;
-				var objectLocatorPtr = await ReadRemoteIntPtr(address - IntPtr.Size);
-				if (objectLocatorPtr.IsValid())
-				{
-#if RTTISCANNER64
-					rtti = await ReadRemoteRuntimeTypeInformation64(objectLocatorPtr);
-#else
-						//rtti = ReadRemoteRuntimeTypeInformation32(objectLocatorPtr);
-#endif
-
-				}
-
-				return rtti;
-			}
-			catch (Exception ex)
-			{
-				throw new Exception($"Catched error reading process memory: {ex.Message}");
-			}
-		}
-
-		public async Task<string[]> ReadRemoteRuntimeTypeInformation64(IntPtr address)
+		public override async Task<string[]> ReadRemoteRuntimeTypeInformation64(IntPtr address)
 		{
 			if (!address.IsValid())
 			{

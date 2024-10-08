@@ -101,15 +101,16 @@ namespace RTTIScanner.Implement
 					return;
 				}
 
-				IntPtr pointer = Memory.Reader.ParseAddress(context);
-				if (!pointer.IsValid())
+				IntPtr objectPointer = Memory.Reader.ParseAddress(context);
+				if (!objectPointer.IsValid())
 				{
-					ErrorResult($"Invalid Address {pointer}");
+					ErrorResult($"Invalid Address {objectPointer}");
 					return;
 				}
 
-				IntPtr remotePtr = await Memory.Reader.GetInstance().GetPtr(pointer, 8);
-				string[] rtti = await RTTI.Parser.GetInstace().ReadRuntimeTypeInformation(remotePtr);
+				// TODO: object pointer dereference optional
+				IntPtr vtablePtr = await Memory.Reader.GetInstance().GetValue<IntPtr>(objectPointer);
+				string[] rtti = await RTTI.Parser.GetInstace().ReadRuntimeTypeInformation(vtablePtr);
 				if (rtti == null || rtti.Length == 0)
 				{
 					ErrorResult($"Unknown Structure");
