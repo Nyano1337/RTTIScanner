@@ -119,6 +119,18 @@ namespace RTTIScanner.RTTI
 			}
 		}
 
+		public async Task<T> ReadRemote<T>(IntPtr address)
+		{
+			try
+			{
+				return await Memory.Reader.GetInstance().GetValue<T>(address);
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Catched error reading process memory: {ex.Message}");
+			}
+		}
+
 		protected virtual void Dispose(bool disposing)
 		{
 			if (!disposedValue)
