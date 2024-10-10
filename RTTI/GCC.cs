@@ -63,6 +63,41 @@ namespace __cxxabiv1
 		public __base_class_type_info[] arrBaseClassAddress { get; set; }
 		public __vmi_class_type_info(IntPtr objAddress) : base(objAddress) { }
 	}
+
+	class __class_tree
+	{
+		public string Name { get; set; }
+		public List<__class_tree> Children { get; set; }
+
+		public __class_tree(string name)
+		{
+			Name = name;
+			Children = new List<__class_tree>();
+		}
+
+		public void AddChild(__class_tree child)
+		{
+			Children.Add(child);
+		}
+
+		public void DepthFirstTraversal()
+		{
+			Console.Write(Name + " ");
+			foreach (var child in Children)
+			{
+				child.DepthFirstTraversal();
+			}
+		}
+
+		public void PrintTree(string prefix = "")
+		{
+			Console.WriteLine(prefix + Name);
+			for (int i = 0; i < Children.Count; i++)
+			{
+				Children[i].PrintTree(prefix + (i == Children.Count - 1 ? "└── " : "├── "));
+			}
+		}
+	}
 }
 
 namespace RTTIScanner.RTTI
