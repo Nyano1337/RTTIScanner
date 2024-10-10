@@ -118,10 +118,7 @@ namespace RTTIScanner.RTTI
 		{
 			IntPtr pCurrentAddr = pTypeinfo;
 			__cxxabiv1.type_info currentObj = await CreateType(pCurrentAddr);
-			if (currentObj is __cxxabiv1.type_info info)
-			{
-				info.name = await GetTypeName(pCurrentAddr);
-			}
+			currentObj.name = await GetTypeName(pCurrentAddr);
 
 			if (currentObj is __cxxabiv1.__class_type_info baseClass)
 			{
