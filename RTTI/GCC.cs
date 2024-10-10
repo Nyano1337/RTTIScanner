@@ -77,7 +77,7 @@ namespace RTTIScanner.RTTI
 			{ "N10__cxxabiv121__vmi_class_type_infoE", typeof(__cxxabiv1.__vmi_class_type_info) }
 		};
 
-		private async Task<object> CreateType(IntPtr pTypeInfo)
+		private async Task<__cxxabiv1.type_info> CreateType(IntPtr pTypeInfo)
 		{
 			IntPtr classTypeInfo = await ReadRemoteIntPtr(pTypeInfo);
 			string classTypeName = await ReadRemoteString(await ReadRemoteIntPtr(classTypeInfo - 32));
@@ -87,7 +87,7 @@ namespace RTTIScanner.RTTI
 				throw new Exception("Failed to get typeinfo.");
 			}
 
-			object instance = Activator.CreateInstance(type, pTypeInfo);
+			__cxxabiv1.type_info instance = (__cxxabiv1.type_info)Activator.CreateInstance(type, pTypeInfo);
 			if (instance == null)
 			{
 				throw new Exception("Failed to CreateInstance on CreateType.");
@@ -103,28 +103,36 @@ namespace RTTIScanner.RTTI
 				return null;
 			}
 
+			return await base.ReadRemoteRuntimeTypeInformation64(startTypeInfo);
+
 			IntPtr pCurrentAddr = startTypeInfo;
 
-loc_rtti_start:
-			string typeName = __cxxabiv1.type_info.demangle(await ReadRemoteString(await ReadRemoteIntPtr(pCurrentAddr + 8)));
-			IntPtr pTypeInfo = pCurrentAddr;
-			object currentObj = await CreateType(pTypeInfo);
+
+
+			// TODO: Full RTTI
+			//return new string[] { typeName };
+		}
+
+		private async Task<__cxxabiv1.type_info> GetRTTIByTypeinfo(IntPtr pTypeinfo)
+		{
+			IntPtr pCurrentAddr = pTypeinfo;
+			__cxxabiv1.type_info currentObj = await CreateType(pCurrentAddr);
 			if (currentObj is __cxxabiv1.type_info info)
 			{
-				info.name = typeName;
+				info.name = await GetTypeName(pCurrentAddr);
 			}
 
-			if (currentObj is __cxxabiv1.__class_type_info baseClass) { }
-			if (currentObj is __cxxabiv1.__si_class_type_info si)
+			if (currentObj is __cxxabiv1.__class_type_info baseClass)
 			{
 				pCurrentAddr += 16;
+			}
 
+			if (currentObj is __cxxabiv1.__si_class_type_info si)
+			{
 				si.baseClassInfo.address = await ReadRemoteIntPtr(pCurrentAddr);
 			}
 			else if (currentObj is __cxxabiv1.__vmi_class_type_info vmi)
 			{
-				pCurrentAddr += 16;
-
 				vmi.flags = await ReadRemote<uint>(pCurrentAddr);
 				pCurrentAddr += 4;
 
@@ -140,22 +148,16 @@ loc_rtti_start:
 					pCurrentAddr += 8;
 
 					vmi.arrBaseClassAddress[i].offset_flags = await ReadRemote<long>(pCurrentAddr);
-
-					if (i < vmi.base_count - 1)
-					{
-						pCurrentAddr += 8;
-					}
-					else
-					{
-						// Reached end, goto the first base class.
-						pCurrentAddr = vmi.arrBaseClassAddress[0].address;
-						goto loc_rtti_start;
-					}
+					pCurrentAddr += 8;
 				}
 			}
 
-			// TODO: Full RTTI
-			return new string[] { typeName };
+			return currentObj;
+		}
+
+		private async Task<string> GetTypeName(IntPtr pTypeinfo)
+		{
+			return __cxxabiv1.type_info.demangle(await ReadRemoteString(await ReadRemoteIntPtr(pTypeinfo + 8)));
 		}
 	}
 }
