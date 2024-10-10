@@ -71,7 +71,8 @@ namespace RTTIScanner.RTTI
 	{
 		private static readonly Dictionary<string, Type> typeMapping = new Dictionary<string, Type>
 		{
-			{ "St9type_info", typeof(__cxxabiv1.type_info) },
+			// i dont care
+			// { "St9type_info", typeof(__cxxabiv1.type_info) }, 
 			{ "N10__cxxabiv117__class_type_infoE", typeof(__cxxabiv1.__class_type_info) },
 			{ "N10__cxxabiv120__si_class_type_infoE", typeof(__cxxabiv1.__si_class_type_info) },
 			{ "N10__cxxabiv121__vmi_class_type_infoE", typeof(__cxxabiv1.__vmi_class_type_info) }
@@ -87,7 +88,7 @@ namespace RTTIScanner.RTTI
 				throw new Exception("Failed to get typeinfo.");
 			}
 
-			__cxxabiv1.type_info instance = (__cxxabiv1.type_info)Activator.CreateInstance(type, pTypeInfo);
+			__cxxabiv1.type_info instance = (__cxxabiv1.type_info)Activator.CreateInstance(type, new object[] { pTypeInfo });
 			if (instance == null)
 			{
 				throw new Exception("Failed to CreateInstance on CreateType.");
