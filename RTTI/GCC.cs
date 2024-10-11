@@ -64,38 +64,84 @@ namespace __cxxabiv1
 		public __vmi_class_type_info(IntPtr objAddress) : base(objAddress) { }
 	}
 
-	class __class_tree
+	class __class_node
 	{
-		public string Name { get; set; }
-		public List<__class_tree> Children { get; set; }
+		public string ClassName { get; }
+		public List<__class_node> Children { get; }
 
-		public __class_tree(string name)
+		public __class_node(string name)
 		{
-			Name = name;
-			Children = new List<__class_tree>();
+			ClassName = name;
+			Children = new List<__class_node>();
 		}
 
-		public void AddChild(__class_tree child)
+		public void AddChild(__class_node child)
 		{
 			Children.Add(child);
 		}
+	}
 
-		public void DepthFirstTraversal()
+	class __class_tree
+	{
+		public __class_node Root { get; }
+
+		private Dictionary<string, __class_node> nodeMap;
+
+		public __class_tree(string rootName)
 		{
-			Console.Write(Name + " ");
-			foreach (var child in Children)
+			Root = new __class_node(rootName);
+			nodeMap = new Dictionary<string, __class_node>
 			{
-				child.DepthFirstTraversal();
+				{ rootName, Root }
+			};
+		}
+
+		public void AddClass(string parentName, string childName)
+		{
+			if (nodeMap.TryGetValue(parentName, out __class_node parentNode))
+			{
+				__class_node childNode = new __class_node(childName);
+				parentNode.AddChild(childNode);
+				nodeMap[childName] = childNode;
 			}
 		}
 
-		public void PrintTree(string prefix = "")
+		public void PrintTree(__class_node node, string prefix = "", bool isLast = true)
 		{
-			Console.WriteLine(prefix + Name);
-			for (int i = 0; i < Children.Count; i++)
+			if (node != null)
 			{
-				Children[i].PrintTree(prefix + (i == Children.Count - 1 ? "└── " : "├── "));
+				Console.WriteLine(prefix + (isLast ? "└── " : "├── ") + node.ClassName);
+				prefix += isLast ? "    " : "│   ";
+
+				for (int i = 0; i < node.Children.Count; i++)
+				{
+					PrintTree(node.Children[i], prefix, i == node.Children.Count - 1);
+				}
 			}
+		}
+
+		public void Print()
+		{
+			PrintTree(Root);
+		}
+
+		public __class_node DFS(string className)
+		{
+			return DFS(Root, className);
+		}
+
+		private __class_node DFS(__class_node node, string className)
+		{
+			if (node == null) return null;
+			if (node.ClassName == className) return node;
+
+			foreach (__class_node child in node.Children)
+			{
+				__class_node foundNode = DFS(child, className);
+				if (foundNode != null) return foundNode;
+			}
+
+			return null;
 		}
 	}
 }
@@ -139,22 +185,37 @@ namespace RTTIScanner.RTTI
 				return null;
 			}
 
+			__cxxabiv1.type_info rootType = await GetRTTIByTypeinfo(startTypeInfo);
+			__cxxabiv1.__class_tree rootNode = new(rootType.name);
+			if (rootType is __cxxabiv1.__vmi_class_type_info vmi)
+			{
+				for (int i = 0; i < vmi.base_count; i++)
+				{
+					string childName = await GetTypeName(vmi.arrBaseClassAddress[i].address);
+					rootNode.AddClass(rootType.name, childName);
+				}
+			}
+			else if (rootType is __cxxabiv1.__si_class_type_info si)
+			{
+				string childName = await GetTypeName(si.baseClassInfo.address);
+				rootNode.AddClass(rootType.name, childName);
+			}
+			else
+			{
+				// thats the end.
+			}
+
 			return await base.ReadRemoteRuntimeTypeInformation64(startTypeInfo);
-
-			IntPtr pCurrentAddr = startTypeInfo;
-
-
-
 			// TODO: Full RTTI
 			//return new string[] { typeName };
 		}
 
 		private async Task<__cxxabiv1.type_info> GetRTTIByTypeinfo(IntPtr pTypeinfo)
 		{
-			IntPtr pCurrentAddr = pTypeinfo;
-			__cxxabiv1.type_info currentObj = await CreateType(pCurrentAddr);
-			currentObj.name = await GetTypeName(pCurrentAddr);
+			__cxxabiv1.type_info currentObj = await CreateType(pTypeinfo);
+			currentObj.name = await GetTypeName(pTypeinfo);
 
+			IntPtr pCurrentAddr = pTypeinfo;
 			if (currentObj is __cxxabiv1.__class_type_info baseClass)
 			{
 				pCurrentAddr += 16;
