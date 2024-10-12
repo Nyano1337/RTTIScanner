@@ -65,13 +65,25 @@ namespace RTTIScanner.Memory
 				return default;
 			}
 
-			if (size == sizeof(long))
+			if (typeof(T) == typeof(ulong))
+			{
+				return (T)(object)BitConverter.ToUInt64(data, 0);
+			}
+			else if (size == sizeof(long))
 			{
 				return typeof(T) == typeof(IntPtr) ? (T)(object)(IntPtr)BitConverter.ToInt64(data, 0) : (T)(object)BitConverter.ToInt64(data, 0);
+			}
+			else if (typeof(T) == typeof(uint))
+			{
+				return (T)(object)BitConverter.ToUInt32(data, 0);
 			}
 			else if (size == sizeof(int))
 			{
 				return typeof(T) == typeof(IntPtr) ? (T)(object)(IntPtr)BitConverter.ToInt32(data, 0) : (T)(object)BitConverter.ToInt32(data, 0);
+			}
+			else if (typeof(T) == typeof(ushort))
+			{
+				return (T)(object)BitConverter.ToUInt16(data, 0);
 			}
 			else if (size == sizeof(short))
 			{

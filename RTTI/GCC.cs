@@ -1,5 +1,8 @@
 ﻿using RTTIScanner.ClassExtensions;
+using System.Collections;
 using System.Collections.Generic;
+using System.Security.Policy;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -63,93 +66,16 @@ namespace __cxxabiv1
 		public __base_class_type_info[] arrBaseClassAddress { get; set; }
 		public __vmi_class_type_info(IntPtr objAddress) : base(objAddress) { }
 	}
-
-	class __class_node
-	{
-		public string ClassName { get; }
-		public List<__class_node> Children { get; }
-
-		public __class_node(string name)
-		{
-			ClassName = name;
-			Children = new List<__class_node>();
-		}
-
-		public void AddChild(__class_node child)
-		{
-			Children.Add(child);
-		}
-	}
-
-	class __class_tree
-	{
-		public __class_node Root { get; }
-
-		private Dictionary<string, __class_node> nodeMap;
-
-		public __class_tree(string rootName)
-		{
-			Root = new __class_node(rootName);
-			nodeMap = new Dictionary<string, __class_node>
-			{
-				{ rootName, Root }
-			};
-		}
-
-		public void AddClass(string parentName, string childName)
-		{
-			if (nodeMap.TryGetValue(parentName, out __class_node parentNode))
-			{
-				__class_node childNode = new __class_node(childName);
-				parentNode.AddChild(childNode);
-				nodeMap[childName] = childNode;
-			}
-		}
-
-		public void PrintTree(__class_node node, string prefix = "", bool isLast = true)
-		{
-			if (node != null)
-			{
-				Console.WriteLine(prefix + (isLast ? "└── " : "├── ") + node.ClassName);
-				prefix += isLast ? "    " : "│   ";
-
-				for (int i = 0; i < node.Children.Count; i++)
-				{
-					PrintTree(node.Children[i], prefix, i == node.Children.Count - 1);
-				}
-			}
-		}
-
-		public void Print()
-		{
-			PrintTree(Root);
-		}
-
-		public __class_node DFS(string className)
-		{
-			return DFS(Root, className);
-		}
-
-		private __class_node DFS(__class_node node, string className)
-		{
-			if (node == null) return null;
-			if (node.ClassName == className) return node;
-
-			foreach (__class_node child in node.Children)
-			{
-				__class_node foundNode = DFS(child, className);
-				if (foundNode != null) return foundNode;
-			}
-
-			return null;
-		}
-	}
 }
 
 namespace RTTIScanner.RTTI
 {
 	public class GCC : Parser
 	{
+		private HashSet<string> m_Visited = new();
+		private Dictionary<string, IntPtr> m_dictTypeAddress = new();
+		private Stack<string> m_Stack = new();
+
 		private static readonly Dictionary<string, Type> typeMapping = new Dictionary<string, Type>
 		{
 			// i dont care
@@ -185,29 +111,103 @@ namespace RTTIScanner.RTTI
 				return null;
 			}
 
+			m_Visited.Clear();
+			m_dictTypeAddress.Clear();
+			m_Stack.Clear();
+			var inheritanceMap = new Dictionary<string, List<string>>();
 			__cxxabiv1.type_info rootType = await GetRTTIByTypeinfo(startTypeInfo);
-			__cxxabiv1.__class_tree rootNode = new(rootType.name);
-			if (rootType is __cxxabiv1.__vmi_class_type_info vmi)
+			m_dictTypeAddress[rootType.name] = startTypeInfo;
+			await Traverse(rootType.name, inheritanceMap);
+
+			string treeString = GetInheritanceTreeString(rootType.name, inheritanceMap, "", true, true);
+			return new string[] { treeString };
+		}
+
+		private async Task Traverse(string root, Dictionary<string, List<string>> map)
+		{
+			m_Stack.Push(root);
+
+			while (m_Stack.Count > 0)
 			{
-				for (int i = 0; i < vmi.base_count; i++)
+				string node = m_Stack.Pop();
+
+				if (!m_Visited.Contains(node))
 				{
-					string childName = await GetTypeName(vmi.arrBaseClassAddress[i].address);
-					rootNode.AddClass(rootType.name, childName);
+					m_Visited.Add(node);
+
+					var currentNodeAddr = m_dictTypeAddress[node];
+					var currentType = await GetRTTIByTypeinfo(currentNodeAddr);
+					if (currentType is __cxxabiv1.__vmi_class_type_info vmi)
+					{
+						for (int i = 0; i < vmi.base_count; i++)
+						{
+							await AddRelationship(map, currentType.name, vmi.arrBaseClassAddress[i]);
+						}
+					}
+					else if (currentType is __cxxabiv1.__si_class_type_info si)
+					{
+						await AddRelationship(map, currentType.name, si.baseClassInfo);
+					}
+					else if (currentType is __cxxabiv1.__class_type_info baseClass)
+					{
+						// node end.
+					}
+
+					// Push children to the stack in reverse order  
+					if (map.ContainsKey(node))
+					{
+						var children = map[node];
+						for (int i = children.Count - 1; i >= 0; i--)
+						{
+							m_Stack.Push(children[i]);
+						}
+					}
 				}
 			}
-			else if (rootType is __cxxabiv1.__si_class_type_info si)
+		}
+
+		private async Task AddRelationship(Dictionary<string, List<string>> map, string parent, __cxxabiv1.__base_class_type_info child)
+		{
+			if (!map.ContainsKey(parent))
 			{
-				string childName = await GetTypeName(si.baseClassInfo.address);
-				rootNode.AddClass(rootType.name, childName);
+				map[parent] = new List<string>();
 			}
-			else
+			string childName = await GetTypeName(child.address);
+			map[parent].Add(childName);
+			m_dictTypeAddress[childName] = child.address;
+		}
+
+		private string GetInheritanceTreeString(string node, Dictionary<string, List<string>> map, string indent, bool last, bool isRoot = false)
+		{
+			var sb = new StringBuilder();
+
+			if (!isRoot)
 			{
-				// thats the end.
+				sb.Append(indent);
+				if (last)
+				{
+					sb.Append("└── ");
+					indent += "    ";
+				}
+				else
+				{
+					sb.Append("├── ");
+					indent += "│   ";
+				}
+			}
+			sb.AppendLine(node);
+
+			if (map.ContainsKey(node))
+			{
+				var children = map[node];
+				for (int i = 0; i < children.Count; i++)
+				{
+					// Recursively build the string for each child  
+					sb.Append(GetInheritanceTreeString(children[i], map, indent, i == children.Count - 1));
+				}
 			}
 
-			return await base.ReadRemoteRuntimeTypeInformation64(startTypeInfo);
-			// TODO: Full RTTI
-			//return new string[] { typeName };
+			return sb.ToString();
 		}
 
 		private async Task<__cxxabiv1.type_info> GetRTTIByTypeinfo(IntPtr pTypeinfo)
