@@ -72,9 +72,6 @@ namespace RTTIScanner.RTTI
 {
 	public class GCC : Parser
 	{
-		private HashSet<string> m_Visited = new();
-		private Dictionary<string, IntPtr> m_dictTypeAddress = new();
-		private Stack<string> m_Stack = new();
 
 		private static readonly Dictionary<string, Type> typeMapping = new Dictionary<string, Type>
 		{
@@ -104,36 +101,36 @@ namespace RTTIScanner.RTTI
 			return instance;
 		}
 
-		public override async Task<string[]> ReadRemoteRuntimeTypeInformation64(IntPtr startTypeInfo)
+		public override async Task<string[]> ReadRemoteRuntimeTypeInformation64(IntPtr rootTypeInfo)
 		{
-			if (!startTypeInfo.IsValid())
+			if (!rootTypeInfo.IsValid())
 			{
 				return null;
 			}
 
-			m_Visited.Clear();
-			m_dictTypeAddress.Clear();
-			m_Stack.Clear();
-			var inheritanceMap = new Dictionary<string, List<string>>();
-			__cxxabiv1.type_info rootType = await GetRTTIByTypeinfo(startTypeInfo);
-			m_dictTypeAddress[rootType.name] = startTypeInfo;
-			await TraverseRTTIByRoot(rootType.name, inheritanceMap);
-
-			string treeString = GetInheritanceTreeString(rootType.name, inheritanceMap, "", true, true);
+			var ret = await TraverseRTTIByRoot(rootTypeInfo);
+			string treeString = GetInheritanceTreeString(ret.Item1, ret.Item2, "", true, true);
 			return new string[] { treeString };
 		}
 
-		private async Task TraverseRTTIByRoot(string root, Dictionary<string, List<string>> map)
+		private async Task<(string, Dictionary<string, List<string>>)> TraverseRTTIByRoot(IntPtr rootTypeInfo)
 		{
-			m_Stack.Push(root);
+			m_hsTypeVisited = new();
+			m_dictTypeAddress = new();
+			m_sInheritance = new();
+			var inheritanceMap = new Dictionary<string, List<string>>();
 
-			while (m_Stack.Count > 0)
+			__cxxabiv1.type_info rootType = await GetRTTIByTypeinfo(rootTypeInfo);
+			m_dictTypeAddress[rootType.name] = rootTypeInfo;
+			m_sInheritance.Push(rootType.name);
+
+			while (m_sInheritance.Count > 0)
 			{
-				string node = m_Stack.Pop();
+				string node = m_sInheritance.Pop();
 
-				if (!m_Visited.Contains(node))
+				if (!m_hsTypeVisited.Contains(node))
 				{
-					m_Visited.Add(node);
+					m_hsTypeVisited.Add(node);
 
 					var currentNodeAddr = m_dictTypeAddress[node];
 					var currentType = await GetRTTIByTypeinfo(currentNodeAddr);
@@ -141,12 +138,12 @@ namespace RTTIScanner.RTTI
 					{
 						for (int i = 0; i < vmi.base_count; i++)
 						{
-							await AddRelationship(map, currentType.name, vmi.arrBaseClassAddress[i]);
+							await AddRelationship(inheritanceMap, currentType.name, vmi.arrBaseClassAddress[i]);
 						}
 					}
 					else if (currentType is __cxxabiv1.__si_class_type_info si)
 					{
-						await AddRelationship(map, currentType.name, si.baseClassInfo);
+						await AddRelationship(inheritanceMap, currentType.name, si.baseClassInfo);
 					}
 					else if (currentType is __cxxabiv1.__class_type_info baseClass)
 					{
@@ -154,16 +151,18 @@ namespace RTTIScanner.RTTI
 					}
 
 					// Push children to the stack in reverse order  
-					if (map.ContainsKey(node))
+					if (inheritanceMap.ContainsKey(node))
 					{
-						var children = map[node];
+						var children = inheritanceMap[node];
 						for (int i = children.Count - 1; i >= 0; i--)
 						{
-							m_Stack.Push(children[i]);
+							m_sInheritance.Push(children[i]);
 						}
 					}
 				}
 			}
+
+			return (rootType.name, inheritanceMap);
 		}
 
 		private async Task AddRelationship(Dictionary<string, List<string>> map, string parent, __cxxabiv1.__base_class_type_info child)

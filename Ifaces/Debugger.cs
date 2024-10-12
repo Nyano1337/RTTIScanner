@@ -44,6 +44,11 @@ namespace RTTIScanner.Ifaces
 
 		public void OnEnterDesignMode()
 		{
+			Engine = null;
+			Process = null;
+			Program = null;
+			MainThread = null;
+			DebugEvent = null;
 			Memory.DebugProcess.GetInstance()?.Dispose();
 			RTTI.Parser.GetInstace()?.Dispose();
 		}

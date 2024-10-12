@@ -2,6 +2,7 @@
 using EnvDTE80;
 using RTTIScanner.ClassExtensions;
 using RTTIScanner.Memory;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
@@ -11,6 +12,9 @@ namespace RTTIScanner.RTTI
 	{
 		private static Parser Instance;
 		private bool disposedValue;
+		protected HashSet<string> m_hsTypeVisited;
+		protected Dictionary<string, IntPtr> m_dictTypeAddress;
+		protected Stack<string> m_sInheritance;
 
 		public static Parser GetInstace()
 		{
