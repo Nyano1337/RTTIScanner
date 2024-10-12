@@ -117,13 +117,13 @@ namespace RTTIScanner.RTTI
 			var inheritanceMap = new Dictionary<string, List<string>>();
 			__cxxabiv1.type_info rootType = await GetRTTIByTypeinfo(startTypeInfo);
 			m_dictTypeAddress[rootType.name] = startTypeInfo;
-			await Traverse(rootType.name, inheritanceMap);
+			await TraverseRTTIByRoot(rootType.name, inheritanceMap);
 
 			string treeString = GetInheritanceTreeString(rootType.name, inheritanceMap, "", true, true);
 			return new string[] { treeString };
 		}
 
-		private async Task Traverse(string root, Dictionary<string, List<string>> map)
+		private async Task TraverseRTTIByRoot(string root, Dictionary<string, List<string>> map)
 		{
 			m_Stack.Push(root);
 
